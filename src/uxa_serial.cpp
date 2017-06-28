@@ -2,6 +2,7 @@
 
 #define PC2MCU_TERMINATOR_  0xFE
 #define PC2MCU_HEADER_      0xFF
+#define ENABLE_ACTUATOR_
 
 /*
  * =========== timer variable ===========
@@ -93,11 +94,13 @@ public:
         unsigned char start:1;
         unsigned char finish:1;
         unsigned char enable:1;
+        unsigned char delay:1;
     }flag;
     void setFrame(unsigned int value);
     void setBeginPose(const unsigned int *value);
     void setEndPose(const unsigned int *value);
     void setNumOfFrame(unsigned int value);
+    void setDelayScene(unsigned int fr);
     void setUpMyScene(unsigned int fr, const unsigned int *beginpose,const unsigned int *endpose);
     Scene_class(){
 
@@ -115,6 +118,8 @@ Scene_class myscene;
 #define TASK_STANDING_  3
 #define TASK_INIT_WALKING_  4
 #define TASK_WALK_1STEP_   5
+#define TASK_POSES_TEST_  6
+
 #define TASK_IDLE_   10
 typedef struct{
     unsigned char startFlag:1;
@@ -152,30 +157,40 @@ const unsigned char softZeroPos[12]={127,127,127,127,48,206,127,127,127,127,127,
 const unsigned int softZeroPos12[12]={2044,2044,2044,2044,1014,3074,2044,2044,2044,2044,2044,2044};// zero of the virtual system
 
 //====== standing pose for walking=============//
-const unsigned char Pose_init_walking[12]={125,125,104,150,88,166,145,109,125,129,130,124};
+const unsigned char Pose_init_walking[12]={125,125,104,150,88,166,145,109,126,128,129,125};
 //====== sitdown=============//
 const unsigned char Pose_sitdown[12]={127,127,77,177,190,64,250,4,124,130,134,124};
 const unsigned int sitdown_averageTorq[12]={3000,3000,3000,3000,3000,3000,3000,3000,3000,3000,3000,3000};
+const unsigned char sitdown_samP[12]={40,40,40,40,40,40,40,40,40,40,40,40};
+const unsigned char sitdown_samD[12]={15,15,15,15,15,15,15,15,15,15,15,15};
 //====== standing pose============//
 const unsigned char Pose_standing_0[12]={127,127,77,177,190,64,250,4,124,130,134,124};
-const unsigned char Pose_standing_1[12]={127,127,87,167,156,98,230,24,127,127,127,127};
-const unsigned char Pose_standing_2[12]={127,127,123,131,48,206,123,131,127,127,127,127};
+const unsigned char Pose_standing_1[12]={127,127,87,167,156,98,230,24,127,127,129,125};
+const unsigned char Pose_standing_2[12]={127,127,122,132,46,208,126,128,127,127,129,125};
+
 const unsigned int numOfFrames_standing[2]={124,241};
 
 //======pose for walking 1 step- M04===========//
-const unsigned char Pose_M04_0[12]={125,127,102,150,89,166,146,109,127,127,130,124};
-const unsigned char Pose_M04_1[12]={130,133,102,150,89,166,146,109,119,118,130,124};
-const unsigned char Pose_M04_2[12]={132,136,87,153,129,166,166,109,124,121,130,124};
-const unsigned char Pose_M04_3[12]={130,130,104,151,89,169,151,114,117,121,130,124};
-const unsigned char Pose_M04_4[12]={125,125,106,151,89,169,151,114,122,124,130,124};
-const unsigned char Pose_M04_5[12]={121,122,104,155,89,169,151,114,130,133,130,124};
-const unsigned char Pose_M04_6[12]={119,119,103,163,89,143,148,94,133,137,130,124};
-const unsigned char Pose_M04_7[12]={122,121,102,150,89,166,146,109,131,137,130,124};
-const unsigned char Pose_M04_8[12]={125,127,102,150,89,166,146,109,127,127,130,124};
-const unsigned char Pose_M04_9[12]={125,127,102,150,89,166,146,109,127,127,130,124};
-unsigned char pose_M04=0;
-const unsigned int numOfFrames_M04[10]={22,22,18,10,10,22,20,12,24};
+//const unsigned char Pose_M04_0[12]={126,128,102,150,89,166,146,109,126,128,129,125};
+const unsigned char Pose_M04_0[12]={125,125,104,150,88,166,145,109,126,128,129,125};// stading pose
+const unsigned char Pose_M04_1[12]={137,135,102,150,89,166,146,109,117,118,129,125};// COM transfer to left foot
+const unsigned char Pose_M04_2[12]={134,140,87,153,129,166,166,109,118,125,129,125};// left standing
+const unsigned char Pose_M04_3[12]={135,139,95,153,89,175,151,127,117,126,131,125};// right step forward, toe contact
 
+const unsigned char Pose_M04_4[12]={130,130,104,153,89,175,151,127,122,124,131,125};// transfer to right foot contact
+const unsigned char Pose_M04_5[12]={120,123,108,155,89,179,151,130,132,132,131,122};// all foot contact//COM transfer to right foot
+
+const unsigned char Pose_M04_6[12]={115,119,108,163,89,143,151,94,130,137,129,120};// right standing
+
+const unsigned char Pose_M04_7[12]={122,121,104,150,89,166,146,109,131,137,129,122};// left step to stand position
+
+const unsigned char Pose_M04_8[12]={126,127,102,150,89,166,146,109,126,128,129,125};
+const unsigned char Pose_M04_9[12]={125,125,104,150,88,166,145,109,126,128,129,125};
+unsigned char pose_M04=0;
+const unsigned int walking1Step_averageTorq[12]={4000,4000,4000,4000,4000,4000,4000,4000,4000,4000,4000,4000};
+const unsigned int numOfFrames_M04[10]={22,22,18,10,20,22,20,12,24};///x1
+//const unsigned int numOfFrames_M04[10]={44,44,36,20,40,44,40,24,48};//x0.5
+//const unsigned int numOfFrames_M04[10]={88,88,72,40,80,88,80,48,96};//x0.25
 void mapSoftPose8ToPose12(const unsigned char *pose8,unsigned int *pose12,unsigned char size){
     for(unsigned char i=0;i<size;i++)
     {
@@ -191,6 +206,208 @@ void mapSoftPose8ToPose12(const unsigned char *pose8,unsigned int *pose12,unsign
 
 //    }
 //}
+
+unsigned char Pose_test[12];
+
+const int hip_pitch_offset=5;
+const int hip_roll_offset=2;
+int hip_pitch_angle;
+int hip_roll_angle;
+
+int knee_angle;
+int ankle_pitch_angle;
+int ankle_roll_angle;
+//======== COM transfer ==============
+void process_pose(){
+    hip_pitch_angle=-knee_angle-ankle_pitch_angle;
+    hip_roll_angle=-ankle_roll_angle;
+
+    //ankle_roll
+    Pose_test[0]=(int)softZeroPos[0]+ankle_roll_angle;
+    Pose_test[1]=(int)softZeroPos[1]+ankle_roll_angle;
+    //ankle_pitch
+    Pose_test[2]=(int)softZeroPos[2]-ankle_pitch_angle;
+    Pose_test[3]=(int)softZeroPos[3]+ankle_pitch_angle;
+    //knee
+    Pose_test[4]=(int)softZeroPos[4]-knee_angle;
+    Pose_test[5]=(int)softZeroPos[5]+knee_angle;
+    //hip_pitch
+    Pose_test[6]=(int)softZeroPos[6]+hip_pitch_angle+hip_pitch_offset;
+    Pose_test[7]=(int)softZeroPos[7]-hip_pitch_angle-hip_pitch_offset;
+    //hip_roll
+    Pose_test[8]=(int)softZeroPos[8]+hip_roll_angle-hip_roll_offset;
+    Pose_test[9]=(int)softZeroPos[9]+hip_roll_angle+hip_roll_offset;
+    //hip_yaw
+    Pose_test[10]=softZeroPos[10];
+    Pose_test[11]=softZeroPos[11];
+}
+
+#define ID_LEFT_FOOT 0
+#define ID_RIGHT_FOOT 1
+//standing on one foot
+
+
+int st_ankle_roll_offset_2;
+int sw_knee_angle_2;
+int sw_hip_pitch_angle_2;
+int sw_hip_roll_angle_2;
+
+int st_hip_roll_offset_2;
+int sw_ankle_pitch_angle_2;
+//======== stand 1 leg ==============
+void process_pose_2(unsigned char foot_ID){
+    sw_ankle_pitch_angle_2=-sw_knee_angle_2-sw_hip_pitch_angle_2;
+    st_hip_roll_offset_2=-st_ankle_roll_offset_2;
+    if(foot_ID==ID_LEFT_FOOT){
+        //============ankle_roll============
+        Pose_test[0]=(int)softZeroPos[0]+ankle_roll_angle+st_ankle_roll_offset_2;
+        //        Pose_test[1]=(int)softZeroPos[1]+ankle_roll_angle;
+        //============hip_roll==============
+        Pose_test[8]=(int)softZeroPos[8]+hip_roll_angle+st_hip_roll_offset_2;
+        //        Pose_test[9]=(int)softZeroPos[9]+hip_roll_angle;
+
+        //==========ankle_pitch=============
+        //        Pose_test[2]=(int)softZeroPos[2]-ankle_pitch_angle;
+        Pose_test[3]=(int)softZeroPos[3]+sw_ankle_pitch_angle_2;
+        //==========hip_pitch===============
+        //        Pose_test[6]=(int)softZeroPos[6]+hip_pitch_angle;
+        Pose_test[7]=(int)softZeroPos[7]-sw_hip_pitch_angle_2;
+
+        //==========knee====================
+        //        Pose_test[4]=(int)softZeroPos[4]-knee_angle;
+        Pose_test[5]=(int)softZeroPos[5]+sw_knee_angle_2;
+
+
+
+        //hip_yaw
+        //        Pose_test[10]=softZeroPos[10];
+        //        Pose_test[11]=softZeroPos[11];
+    }
+    else{
+        //ankle_roll
+        //        Pose_test[0]=(int)softZeroPos[0]+ankle_roll_angle;
+        Pose_test[1]=(int)softZeroPos[1]-ankle_roll_angle+st_ankle_roll_offset_2;
+        //ankle_pitch
+        Pose_test[2]=(int)softZeroPos[2]-sw_ankle_pitch_angle_2;
+        //        Pose_test[3]=(int)softZeroPos[3]+ankle_pitch_angle;
+        //knee
+        Pose_test[4]=(int)softZeroPos[4]-sw_knee_angle_2;
+        //        Pose_test[5]=(int)softZeroPos[5]+knee_angle;
+        //hip_pitch
+        Pose_test[6]=(int)softZeroPos[6]+sw_hip_pitch_angle_2;
+        //        Pose_test[7]=(int)softZeroPos[7]-hip_pitch_angle-hip_pitch_offset;
+        //hip_roll
+        //        Pose_test[8]=(int)softZeroPos[8]+hip_roll_angle;
+        Pose_test[9]=(int)softZeroPos[9]-hip_roll_angle+st_hip_roll_offset_2;
+        //hip_yaw
+        //        Pose_test[10]=softZeroPos[10];
+        //        Pose_test[11]=softZeroPos[11];
+
+
+    }
+}
+
+int forward_pitch_3;
+int st_knee_3;
+int sw_knee_3;
+int sw_hip_pitch_3;
+
+int st_ankle_pitch_3;
+int st_hip_pitch_3;
+int sw_ankle_pitch_3;
+//======== step forward ==============
+void process_pose_3(unsigned char foot_ID){
+    st_ankle_pitch_3=ankle_pitch_angle+forward_pitch_3;
+    sw_ankle_pitch_3=-sw_knee_3-sw_hip_pitch_3;
+    st_hip_pitch_3=-st_knee_3-st_ankle_pitch_3;
+    if(foot_ID==ID_LEFT_FOOT){
+        //============ankle_roll============
+        Pose_test[0]=(int)softZeroPos[0]+ankle_roll_angle;
+        //        Pose_test[1]=(int)softZeroPos[1]+ankle_roll_angle;
+        //============hip_roll==============
+        Pose_test[8]=(int)softZeroPos[8]+hip_roll_angle+st_hip_roll_offset_2;
+        //        Pose_test[9]=(int)softZeroPos[9]+hip_roll_angle;
+
+        //==========ankle_pitch=============
+        Pose_test[2]=(int)softZeroPos[2]-st_ankle_pitch_3;
+        Pose_test[3]=(int)softZeroPos[3]+sw_ankle_pitch_3;
+        //==========hip_pitch===============
+        Pose_test[6]=(int)softZeroPos[6]+st_hip_pitch_3;
+        Pose_test[7]=(int)softZeroPos[7]-sw_hip_pitch_3;
+
+        //==========knee====================
+        Pose_test[4]=(int)softZeroPos[4]-st_knee_3;
+        Pose_test[5]=(int)softZeroPos[5]+sw_knee_3;
+
+
+
+        //hip_yaw
+        //        Pose_test[10]=softZeroPos[10];
+        //        Pose_test[11]=softZeroPos[11];
+    }
+    else{
+        //============ankle_roll============
+//        Pose_test[0]=(int)softZeroPos[0]+ankle_roll_angle;
+                Pose_test[1]=(int)softZeroPos[1]-ankle_roll_angle;
+        //============hip_roll==============
+//        Pose_test[8]=(int)softZeroPos[8]+hip_roll_angle+st_hip_roll_offset_2;
+                Pose_test[9]=(int)softZeroPos[9]-hip_roll_angle+st_hip_roll_offset_2;
+        //==========ankle_pitch=============
+        Pose_test[2]=(int)softZeroPos[2]-sw_ankle_pitch_3;
+        Pose_test[3]=(int)softZeroPos[3]+st_ankle_pitch_3;
+        //==========hip_pitch===============
+        Pose_test[6]=(int)softZeroPos[6]+sw_hip_pitch_3;
+        Pose_test[7]=(int)softZeroPos[7]-st_hip_pitch_3;
+
+        //==========knee====================
+        Pose_test[4]=(int)softZeroPos[4]-sw_knee_3;
+        Pose_test[5]=(int)softZeroPos[5]+st_knee_3;
+
+
+
+        //hip_yaw
+        //        Pose_test[10]=softZeroPos[10];
+        //        Pose_test[11]=softZeroPos[11];
+    }
+}
+
+
+
+int ankle_roll_4;
+int st_ankle_pitch_4;
+int sw_ankle_pitch_4;
+int st_knee_4;
+int sw_knee_4;
+
+int hip_roll_4;
+int st_hip_pitch_4;
+int sw_hip_pitch_4;
+//======== COM transfer ==============
+void process_pose_4(){
+    st_hip_pitch_4=-st_knee_4-st_ankle_pitch_4;
+    sw_hip_pitch_4=-sw_knee_4-sw_ankle_pitch_4;
+    hip_roll_4=-ankle_roll_4;
+
+    //ankle_roll
+    Pose_test[0]=(int)softZeroPos[0]+ankle_roll_4;
+    Pose_test[1]=(int)softZeroPos[1]+ankle_roll_4;
+    //ankle_pitch
+    Pose_test[2]=(int)softZeroPos[2]-st_ankle_pitch_4;
+    Pose_test[3]=(int)softZeroPos[3]+sw_ankle_pitch_4;
+    //knee
+    Pose_test[4]=(int)softZeroPos[4]-st_knee_4;
+    Pose_test[5]=(int)softZeroPos[5]+sw_knee_4;
+    //hip_pitch
+    Pose_test[6]=(int)softZeroPos[6]+st_hip_pitch_4;
+    Pose_test[7]=(int)softZeroPos[7]-sw_hip_pitch_4;
+
+    Pose_test[8]=(int)softZeroPos[8]+hip_roll_4;
+    Pose_test[9]=(int)softZeroPos[9]+hip_roll_4;
+    //hip_yaw
+    //    Pose_test[10]=softZeroPos[10];
+    //    Pose_test[11]=softZeroPos[11];
+}
+
 /*
  * ============== sam class============
  */
@@ -224,7 +441,7 @@ public:
     void setAllAverageTorque(const unsigned int *Atorq,unsigned char numOfSam);
     void getAllAverageTorque();
 
-    void setAllPDQuick(unsigned char *Pvalue,unsigned char *Dvalue,unsigned char numOfSam);
+    void setAllPDQuick(const unsigned char *Pvalue,const unsigned char *Dvalue,unsigned char numOfSam);
     void getAllPDQuick();
 };
 SAMmodule mySam;
@@ -266,369 +483,492 @@ int main(int argc, char **argv)
 
     ros::Rate loop_rate(LOOP_RATE_1000Hz_);
 
-    if((Serial = Init_Serial(_SERIAL_PORT)) != -1)
+    //    if((Serial = Init_Serial(_SERIAL_PORT)) != -1)
+    //    {
+
+    memset(Trans_chr, '\0', sizeof(Trans_chr));
+    memset(Recev_chr, '\0', sizeof(Recev_chr));
+
+    //        unsigned char cnt = 0;
+    //        mySam.setSamPos12(0,1700);
+
+    //        sleep(1);
+    //        mySam.setSamPos12(0,1500);
+
+    //        sleep(1);
+    //        mySam.setSamPos12(0,1800);
+
+    //        sleep(1);
+
+    cout << "SERIAL : " <<  "Serial communication stand by." << endl << endl;
+
+
+    unsigned int taskCount=0;
+    unsigned char flagTask=0;
+
+    unsigned int samPos12;
+    unsigned char samID;
+
+
+
+
+    usleep(500);
+    for(unsigned char i=0; i<12;i++)
     {
-
-        memset(Trans_chr, '\0', sizeof(Trans_chr));
-        memset(Recev_chr, '\0', sizeof(Recev_chr));
-
-        //        unsigned char cnt = 0;
-        //        mySam.setSamPos12(0,1700);
-
-        //        sleep(1);
-        //        mySam.setSamPos12(0,1500);
-
-        //        sleep(1);
-        //        mySam.setSamPos12(0,1800);
-
-        //        sleep(1);
-
-        cout << "SERIAL : " <<  "Serial communication stand by." << endl << endl;
-
-
-        unsigned int taskCount=0;
-        unsigned char flagTask=0;
-
-        unsigned int samPos12;
-        unsigned char samID;
-
-
-
-
+        mySam.setPID(i,default_samP[i],default_samI[i],default_samD[i]);
         usleep(500);
-        for(unsigned char i=0; i<12;i++)
-        {
-            mySam.setPID(i,default_samP[i],default_samI[i],default_samD[i]);
-            usleep(500);
-        }
+    }
 
-        mapSoftPose8ToPose12((unsigned char*)softZeroPos,(unsigned int*)pos12,12);
-        //        mySam.setAllPos12(pos12,12);
+    mapSoftPose8ToPose12((unsigned char*)softZeroPos,(unsigned int*)pos12,12);
+    //        mySam.setAllPos12(pos12,12);
 
-        task.id=TASK_INIT_;
-        while(ros::ok())
-        {
-            loop_rate.sleep();
-            Timer_handler();
-            /*
+    task.id=TASK_POSES_TEST_;
+    while(ros::ok())
+    {
+        loop_rate.sleep();
+        Timer_handler();
+        /*
              * ========== your code begins frome here===============
              */
 
-            if(FlagTimer.Hz_50)
-            {
-                FlagTimer.Hz_50=0;
-                //================
-                mySam.getAllPos12();
-                //                for (unsigned char i=0;i<12;i++)
-                //                {
-                //                    cout <<angle[i]<<":";
-                //                }
-                //                cout<<endl;
+        if(FlagTimer.Hz_50)
+        {
+            FlagTimer.Hz_50=0;
+            //================
+            mySam.getAllPos12();
+            //                for (unsigned char i=0;i<12;i++)
+            //                {
+            //                    cout <<angle[i]<<":";
+            //                }
+            //                cout<<endl;
 
-            }
+        }
 
 
-            if(FlagTimer.Hz_100)
-            {
-                FlagTimer.Hz_100=0;
-                //================
+        if(FlagTimer.Hz_100)
+        {
+            FlagTimer.Hz_100=0;
+            //================
 
-                switch (task.id){
-                case TASK_INIT_:
-                    if(task.startFlag==0){
-                        task.startFlag=1;
-                        //===============
-                        //                        myscene.setUpMyScene(200,pose_init,softZeroPos);
-                        //                        mySam.getAllPos12();
+            switch (task.id){
+            case TASK_POSES_TEST_:
+                if(task.startFlag==0){
+                    task.startFlag=1;
+                    task.scene=0;
+                    unsigned int beginPose12[12];
+                    unsigned int endPose12[12];
+
+                    knee_angle =-40;//40 (8bit angle/1.08degree)
+                    ankle_pitch_angle=25;
+                    ankle_roll_angle=-8;
+                    process_pose();
+                    mapSoftPose8ToPose12(Pose_init_walking,beginPose12,12);
+
+                    mapSoftPose8ToPose12(Pose_test,endPose12,12);
+                    myscene.setUpMyScene(300,beginPose12,endPose12);
+                }
+                else if(myscene.flag.finish)
+                {
+                    myscene.flag.finish=0;
+                    task.scene++;
+
+                    unsigned int beginPose12[12];
+                    unsigned int endPose12[12];
+                    switch(task.scene){
+                    case 0:
+                        knee_angle =-40;//40 (8bit angle/1.08degree)
+                        ankle_pitch_angle=25;
+                        ankle_roll_angle=10;
+                        process_pose();
+                        mapSoftPose8ToPose12(Pose_test,beginPose12,12);
+
+                        knee_angle =-40;//40 (8bit angle/1.08degree)
+                        ankle_pitch_angle=25;
+                        ankle_roll_angle=-10;
+                        process_pose();
+                        mapSoftPose8ToPose12(Pose_test,endPose12,12);
+                        myscene.setUpMyScene(100,beginPose12,endPose12);
+
+                        break;
+                    case 1:
+
+
+                        knee_angle =-40;//40 (8bit angle/1.08degree)
+                        ankle_pitch_angle=25;
+                        ankle_roll_angle=-8;
+                        process_pose();
+                        mapSoftPose8ToPose12(Pose_test,beginPose12,12);
+
+                        sw_knee_angle_2=-60;
+                        sw_hip_pitch_angle_2=40;
+                        st_ankle_roll_offset_2=0;
+                        process_pose_2(ID_LEFT_FOOT);
+                        mapSoftPose8ToPose12(Pose_test,endPose12,12);
+                        myscene.setUpMyScene(50,beginPose12,endPose12);
+                        break;
+                    case 2:
+                        //                            myscene.setDelayScene(300);
+
+                        process_pose_2(ID_LEFT_FOOT);
+                        mapSoftPose8ToPose12(Pose_test,beginPose12,12);
+
+                        forward_pitch_3=7;
+                        st_knee_3=-30;
+                        sw_knee_3=-40;
+                        sw_hip_pitch_3=25;
+
+                        process_pose_3(ID_LEFT_FOOT);
+                        mapSoftPose8ToPose12(Pose_test,endPose12,12);
+                        myscene.setUpMyScene(50,beginPose12,endPose12);
+                        break;
+                    case 3:
+                        mapSoftPose8ToPose12(Pose_test,beginPose12,12);
+
+                        ankle_roll_4=8;
+                        st_ankle_pitch_4=32;
+                        sw_ankle_pitch_4=25;
+                        st_knee_4=-25;
+                        sw_knee_4=-40;
+                        process_pose_4();
+
+                        mapSoftPose8ToPose12(Pose_test,endPose12,12);
+                        myscene.setUpMyScene(300,beginPose12,endPose12);
+
+                        break;
+                    case 4:
+                        mapSoftPose8ToPose12(Pose_test,beginPose12,12);
+
+                        sw_knee_angle_2=-60;
+                        sw_hip_pitch_angle_2=15;
+                        st_ankle_roll_offset_2=0;
+                        process_pose_2(ID_RIGHT_FOOT);
+                        mapSoftPose8ToPose12(Pose_test,endPose12,12);
+                        myscene.setUpMyScene(300,beginPose12,endPose12);
+
+                        break;
+
+                    case 5:
+                        process_pose_2(ID_RIGHT_FOOT);
+                        mapSoftPose8ToPose12(Pose_test,beginPose12,12);
+
+                        forward_pitch_3=0;
+                        st_knee_3=-40;
+                        sw_knee_3=-40;
+                        sw_hip_pitch_3=20;
+
+                        process_pose_3(ID_RIGHT_FOOT);
+                        mapSoftPose8ToPose12(Pose_test,endPose12,12);
+                        myscene.setUpMyScene(100,beginPose12,endPose12);
+                    default:
+                        task.finishFlag=1;
+                        break;
                     }
-                    else if(myCom.flagDataAvailable_readAllPos12)
-                    {
-                        myCom.flagDataAvailable_readAllPos12=0;
-                        //====================================
-                        unsigned char count=0;
-                        for(unsigned char i=0;i<12;i++){
-                            if(myCom.samPos12Avail[i]==1)
-                                count++;
-                        }
+                    //                task.finishFlag=1;
+                }
+                else if(task.finishFlag){
+                    task.finishFlag=0;
+                    task.startFlag=0;
+                    task.id=TASK_INIT_;
 
-                        if((count==12)&&(myCom.samPos12[0]>0))
-                        {
-                            task.finishFlag=1;
-                            cout <<"init task done"<<endl;
-                            for(unsigned char i=0;i<12;i++)
-                            {
-                                currentSamPos12[i]=myCom.samPos12[i];
-                            }
-                            for (unsigned char i=0;i<12;i++)
-                            {
-                                cout <<currentSamPos12[i]<<":";
-                            }
-                            cout<<endl;
-
-                            for(unsigned char i=0;i<12;i++)
-                            {
-                                pos12[i]=currentSamPos12[i];
-                                angle[i]=((double)pos12[i]-(double)samPos12_offset[i])*pos12bitTorad;
-
-                            }
-
-
-                        }
-                        else{
-                            sleep(1);
-                            cout <<"init error: "<<(int)count<<endl;
-                            mySam.getAllPos12();
-                        }
-
-
-
-                    }
-                    else if(task.finishFlag){
-                        task.finishFlag=0;
-                        task.startFlag=0;
-                        task.id=TASK_TEST_;
-                        cout <<"finish test task "<<endl;
-                        mySam.setAllAverageTorque(sitdown_averageTorq,12);
-                        usleep(1000);
-                    }
-                    break;
-
-                case TASK_TEST_:
-                    if(task.startFlag==0){
-                        task.startFlag=1;
-                        unsigned int endPose12[12];
-                        mapSoftPose8ToPose12(Pose_sitdown,endPose12,12);
-                        myscene.setUpMyScene(400,currentSamPos12,endPose12);
+                }
+                break;
+            case TASK_INIT_:
+                if(task.startFlag==0){
+                    task.startFlag=1;
+                    //===============
+                    //                        myscene.setUpMyScene(200,pose_init,softZeroPos);
+                    //                        mySam.getAllPos12();
+                }
+                else if(myCom.flagDataAvailable_readAllPos12)
+                {
+                    myCom.flagDataAvailable_readAllPos12=0;
+                    //====================================
+                    unsigned char count=0;
+                    for(unsigned char i=0;i<12;i++){
+                        if(myCom.samPos12Avail[i]==1)
+                            count++;
                     }
 
-                    else if(task.finishFlag){
-                        task.finishFlag=0;
-                        task.startFlag=0;
-                        task.id=TASK_STANDING_;
-
-                    }
-                    else if(myscene.flag.finish)
+                    if((count==12)&&(myCom.samPos12[0]>0))
                     {
                         task.finishFlag=1;
+                        cout <<"init task done"<<endl;
+                        for(unsigned char i=0;i<12;i++)
+                        {
+                            currentSamPos12[i]=myCom.samPos12[i];
+                        }
+                        for (unsigned char i=0;i<12;i++)
+                        {
+                            cout <<currentSamPos12[i]<<":";
+                        }
+                        cout<<endl;
+
+                        for(unsigned char i=0;i<12;i++)
+                        {
+                            pos12[i]=currentSamPos12[i];
+                            angle[i]=((double)pos12[i]-(double)samPos12_offset[i])*pos12bitTorad;
+
+                        }
+
+
                     }
-                    break;
+                    else{
+                        sleep(1);
+                        cout <<"init error: "<<(int)count<<endl;
+                        mySam.getAllPos12();
+                    }
 
-//                case  TASK_SITDOWN_:
-//                    if(task.startFlag==0){
-//                        task.startFlag=1;
-//                        unsigned int beginPose12[12];
-//                        unsigned int endPose12[12];
-//                        mapSoftPose8ToPose12(Pose_standing_2,beginPose12,12);
-//                        mapSoftPose8ToPose12(Pose_sitdown,endPose12,12);
-//                        myscene.setUpMyScene(600,beginPose12,endPose12);
-//                    }
 
-//                    else if(task.finishFlag){
-//                        task.finishFlag=0;
-//                        task.startFlag=0;
-//                        task.id=TASK_STANDING_;
-//                    }
-//                    else if(myscene.flag.finish)
-//                    {
-//                        task.finishFlag=1;
-//                    }
-//                    break;
-                case TASK_STANDING_:
-                    if(task.startFlag==0){
-                        task.startFlag=1;
-                        task.scene=0;
-                        unsigned int beginPose12[12];
-                        unsigned int endPose12[12];
+
+                }
+                else if(task.finishFlag){
+                    task.finishFlag=0;
+                    task.startFlag=0;
+                    task.id=TASK_TEST_;
+                    cout <<"finish test task "<<endl;
+                    mySam.setAllAverageTorque(sitdown_averageTorq,12);
+                    usleep(1000);
+                    mySam.setAllPDQuick(sitdown_samP,sitdown_samD,12);
+                    usleep(1000);
+                }
+                break;
+
+            case TASK_TEST_:
+                if(task.startFlag==0){
+                    task.startFlag=1;
+                    unsigned int endPose12[12];
+                    mapSoftPose8ToPose12(Pose_init_walking,endPose12,12);
+                    //                        mapSoftPose8ToPose12(Pose_M04_4,endPose12,12);
+                    myscene.setUpMyScene(300,currentSamPos12,endPose12);
+                }
+
+                else if(task.finishFlag){
+                    task.finishFlag=0;
+                    task.startFlag=0;
+                    task.id=TASK_POSES_TEST_;
+                }
+                else if(myscene.flag.finish)
+                {
+                    task.finishFlag=1;
+                    mySam.setAllAverageTorque(walking1Step_averageTorq,12);
+                    usleep(1000);
+
+                }
+                break;
+
+            case TASK_STANDING_:
+                if(task.startFlag==0){
+                    task.startFlag=1;
+                    task.scene=0;
+                    unsigned int beginPose12[12];
+                    unsigned int endPose12[12];
+                    mapSoftPose8ToPose12(Pose_standing_0,beginPose12,12);
+                    mapSoftPose8ToPose12(Pose_standing_1,endPose12,12);
+                    myscene.setUpMyScene(numOfFrames_standing[task.scene],beginPose12,endPose12);
+                }
+                else if(myscene.flag.finish)
+                {
+                    myscene.flag.finish=0;
+                    task.scene++;
+
+                    unsigned int beginPose12[12];
+                    unsigned int endPose12[12];
+                    switch(task.scene){
+                    case 0:
                         mapSoftPose8ToPose12(Pose_standing_0,beginPose12,12);
                         mapSoftPose8ToPose12(Pose_standing_1,endPose12,12);
                         myscene.setUpMyScene(numOfFrames_standing[task.scene],beginPose12,endPose12);
+                        break;
+                    case 1:
+                        mapSoftPose8ToPose12(Pose_standing_1,beginPose12,12);
+                        mapSoftPose8ToPose12(Pose_standing_2,endPose12,12);
+                        myscene.setUpMyScene(numOfFrames_standing[task.scene],beginPose12,endPose12);
+                        break;
+                    default:
+                        task.finishFlag=1;
+                        break;
                     }
-                    else if(myscene.flag.finish)
-                    {
-                        myscene.flag.finish=0;
-                        task.scene++;
+                    //                task.finishFlag=1;
+                }
+                else if(task.finishFlag){
+                    task.finishFlag=0;
+                    task.startFlag=0;
+                    task.id=TASK_INIT_WALKING_;
+                    sleep(3);
+                }
+                break;
 
-                        unsigned int beginPose12[12];
-                        unsigned int endPose12[12];
-                        switch(task.scene){
-                        case 0:
-                            mapSoftPose8ToPose12(Pose_standing_0,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_standing_1,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_standing[task.scene],beginPose12,endPose12);
-                            break;
-                        case 1:
-                            mapSoftPose8ToPose12(Pose_standing_1,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_standing_2,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_standing[task.scene],beginPose12,endPose12);
-                            break;
-                        default:
-                            task.finishFlag=1;
-                            break;
-                        }
-                        //                task.finishFlag=1;
-                    }
-                    else if(task.finishFlag){
-                        task.finishFlag=0;
-                        task.startFlag=0;
-                        task.id=TASK_SITDOWN_;
-                        sleep(3);
-                    }
-                    break;
-                case  TASK_SITDOWN_:
-                    if(task.startFlag==0){
-                        task.startFlag=1;
-                        task.scene=1;
-                        unsigned int beginPose12[12];
-                        unsigned int endPose12[12];
+
+            case  TASK_SITDOWN_:
+                if(task.startFlag==0){
+                    task.startFlag=1;
+                    task.scene=1;
+                    unsigned int beginPose12[12];
+                    unsigned int endPose12[12];
+                    mapSoftPose8ToPose12(Pose_standing_2,beginPose12,12);
+                    mapSoftPose8ToPose12(Pose_standing_1,endPose12,12);
+                    myscene.setUpMyScene(numOfFrames_standing[task.scene],beginPose12,endPose12);
+                }
+                else if(myscene.flag.finish)
+                {
+                    myscene.flag.finish=0;
+                    task.scene--;
+
+                    unsigned int beginPose12[12];
+                    unsigned int endPose12[12];
+                    switch(task.scene){
+                    case 0:
+                        mapSoftPose8ToPose12(Pose_standing_1,beginPose12,12);
+                        mapSoftPose8ToPose12(Pose_standing_0,endPose12,12);
+                        myscene.setUpMyScene(numOfFrames_standing[task.scene],beginPose12,endPose12);
+                        break;
+                    case 1:
                         mapSoftPose8ToPose12(Pose_standing_2,beginPose12,12);
                         mapSoftPose8ToPose12(Pose_standing_1,endPose12,12);
                         myscene.setUpMyScene(numOfFrames_standing[task.scene],beginPose12,endPose12);
-                    }
-                    else if(myscene.flag.finish)
-                    {
-                        myscene.flag.finish=0;
-                        task.scene--;
-
-                        unsigned int beginPose12[12];
-                        unsigned int endPose12[12];
-                        switch(task.scene){
-                        case 0:
-                            mapSoftPose8ToPose12(Pose_standing_1,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_standing_0,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_standing[task.scene],beginPose12,endPose12);
-                            break;
-                        case 1:
-                            mapSoftPose8ToPose12(Pose_standing_2,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_standing_1,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_standing[task.scene],beginPose12,endPose12);
-                            break;
-                        default:
-                            task.finishFlag=1;
-                            break;
-                        }
-                        //                task.finishFlag=1;
-                    }
-                    else if(task.finishFlag){
-                        task.finishFlag=0;
-                        task.startFlag=0;
-                        task.id=TASK_STANDING_;
-                        sleep(4);
-
-//                        mySam.setAllPassive();
-//                        sleep(1);
-                    }
-                    break;
-                case TASK_INIT_WALKING_:
-                    if(task.startFlag==0){
-                        task.startFlag=1;
-                        unsigned int beginPose12[12];
-                        unsigned int endPose12[12];
-                        mapSoftPose8ToPose12(Pose_standing_2,beginPose12,12);
-                        mapSoftPose8ToPose12(Pose_init_walking,endPose12,12);
-                        myscene.setUpMyScene(300,beginPose12,endPose12);
-                    }
-                    else if(myscene.flag.finish)
-                    {
-                        myscene.flag.finish=0;
+                        break;
+                    default:
                         task.finishFlag=1;
+                        break;
                     }
-                    else if(task.finishFlag){
-                        task.finishFlag=0;
-                        task.startFlag=0;
-                        task.id=TASK_WALK_1STEP_;
-                    }
-                    break;
-                case TASK_WALK_1STEP_:
-                    if(task.startFlag==0){
-                        task.startFlag=1;
-                        task.scene=0;
-                        //===== you code begin from here====
-                        unsigned int beginPose12[12];
-                        unsigned int endPose12[12];
+                    //                task.finishFlag=1;
+                }
+                else if(task.finishFlag){
+                    task.finishFlag=0;
+                    task.startFlag=0;
+                    task.id=TASK_STANDING_;
+                    sleep(4);
+
+                    //                        mySam.setAllPassive();
+                    //                        sleep(1);
+                }
+                break;
+            case TASK_INIT_WALKING_:
+                if(task.startFlag==0){
+                    task.startFlag=1;
+                    unsigned int beginPose12[12];
+                    unsigned int endPose12[12];
+                    mapSoftPose8ToPose12(Pose_standing_2,beginPose12,12);
+                    mapSoftPose8ToPose12(Pose_init_walking,endPose12,12);
+                    myscene.setUpMyScene(300,beginPose12,endPose12);
+                }
+                else if(myscene.flag.finish)
+                {
+                    myscene.flag.finish=0;
+                    task.finishFlag=1;
+                }
+                else if(task.finishFlag){
+                    task.finishFlag=0;
+                    task.startFlag=0;
+                    task.id=TASK_WALK_1STEP_;
+                }
+                break;
+            case TASK_WALK_1STEP_:
+                if(task.startFlag==0){
+                    task.startFlag=1;
+                    task.scene=0;
+                    //===== you code begin from here====
+                    unsigned int beginPose12[12];
+                    unsigned int endPose12[12];
+                    mapSoftPose8ToPose12(Pose_M04_0,beginPose12,12);
+                    mapSoftPose8ToPose12(Pose_M04_1,endPose12,12);
+                    myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
+                }
+                else if(myscene.flag.finish)
+                {
+                    myscene.flag.finish=0;
+                    task.scene++;
+
+                    unsigned int beginPose12[12];
+                    unsigned int endPose12[12];
+                    switch(task.scene){
+                    case 0:
                         mapSoftPose8ToPose12(Pose_M04_0,beginPose12,12);
                         mapSoftPose8ToPose12(Pose_M04_1,endPose12,12);
                         myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
+                        break;
+                    case 1:
+                        mapSoftPose8ToPose12(Pose_M04_1,beginPose12,12);
+                        mapSoftPose8ToPose12(Pose_M04_2,endPose12,12);
+                        myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
+
+                        break;
+                    case 2:
+                        mapSoftPose8ToPose12(Pose_M04_2,beginPose12,12);
+                        mapSoftPose8ToPose12(Pose_M04_3,endPose12,12);
+                        myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
+
+
+                        break;
+                    case 3:
+                        mapSoftPose8ToPose12(Pose_M04_3,beginPose12,12);
+                        mapSoftPose8ToPose12(Pose_M04_4,endPose12,12);
+                        myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
+
+                        break;
+                    case 4:
+                        mapSoftPose8ToPose12(Pose_M04_4,beginPose12,12);
+                        mapSoftPose8ToPose12(Pose_M04_5,endPose12,12);
+                        myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
+                        break;
+                    case 5:
+                        mapSoftPose8ToPose12(Pose_M04_5,beginPose12,12);
+                        mapSoftPose8ToPose12(Pose_M04_6,endPose12,12);
+                        myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
+
+                        break;
+
+                    case 6:
+                        mapSoftPose8ToPose12(Pose_M04_6,beginPose12,12);
+                        mapSoftPose8ToPose12(Pose_M04_7,endPose12,12);
+                        myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
+                        //task.scene=9;
+                        break;
+                    case 7:
+                        mapSoftPose8ToPose12(Pose_M04_7,beginPose12,12);
+                        mapSoftPose8ToPose12(Pose_M04_8,endPose12,12);
+                        myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
+
+                        break;
+                    case 8:
+                        mapSoftPose8ToPose12(Pose_M04_8,beginPose12,12);
+                        mapSoftPose8ToPose12(Pose_M04_9,endPose12,12);
+                        myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
+
+                        break;
+                    default:
+                        task.finishFlag=1;
+                        break;
                     }
-                    else if(myscene.flag.finish)
-                    {
-                        myscene.flag.finish=0;
-                        task.scene++;
-
-                        unsigned int beginPose12[12];
-                        unsigned int endPose12[12];
-                        switch(task.scene){
-                        case 0:
-                            mapSoftPose8ToPose12(Pose_M04_0,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_M04_1,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
-                            break;
-                        case 1:
-                            mapSoftPose8ToPose12(Pose_M04_1,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_M04_2,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
-
-                            break;
-                        case 2:
-                            mapSoftPose8ToPose12(Pose_M04_2,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_M04_3,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
-
-                            break;
-                        case 3:
-                            mapSoftPose8ToPose12(Pose_M04_3,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_M04_4,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
-
-                            break;
-                        case 4:
-                            mapSoftPose8ToPose12(Pose_M04_4,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_M04_5,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
-
-                            break;
-                        case 5:
-                            mapSoftPose8ToPose12(Pose_M04_5,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_M04_6,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
-
-                            break;
-                        case 6:
-                            mapSoftPose8ToPose12(Pose_M04_6,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_M04_7,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
-
-                            break;
-                        case 7:
-                            mapSoftPose8ToPose12(Pose_M04_7,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_M04_8,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
-
-                            break;
-                        case 8:
-                            mapSoftPose8ToPose12(Pose_M04_8,beginPose12,12);
-                            mapSoftPose8ToPose12(Pose_M04_9,endPose12,12);
-                            myscene.setUpMyScene(numOfFrames_M04[task.scene],beginPose12,endPose12);
-
-                            break;
-                        default:
-                            task.finishFlag=1;
-                            break;
-                        }
-                        //                task.finishFlag=1;
-                    }
-                    else if(task.finishFlag){
-                        task.finishFlag=0;
-                        task.startFlag=0;
-                        //==========your code==========
-                        task.id=TASK_IDLE_;
-                    }
-                    break;
-                default:
-                    break;
+                    //                task.finishFlag=1;
                 }
+                else if(task.finishFlag){
+                    task.finishFlag=0;
+                    task.startFlag=0;
+                    //==========your code==========
+                    task.id=TASK_WALK_1STEP_;
+                }
+                break;
+            default:
+                break;
+            }
 
-                if(myscene.flag.enable){
-                    myscene.frame++;
+            if(myscene.flag.enable){
+                myscene.frame++;
+
+                if(myscene.flag.delay){
+                    if(myscene.flag.start==0){
+                        myscene.flag.start=1;
+                        myscene.frame=0;
+                    }
+                    else if(myscene.frame>myscene.numOfFrame)
+                    {
+                        myscene.flag.enable=0;
+                        myscene.flag.finish=1;
+                        myscene.flag.delay=0;
+                    }
+                }
+                else{
                     if(myscene.flag.start==0){
                         myscene.flag.start=1;
                         myscene.frame=0;
@@ -636,7 +976,6 @@ int main(int argc, char **argv)
                         {
                             pos12_double[i]=*(myscene.beginPose+i);
                             angle[i]=(pos12_double[i]-(double)samPos12_offset[i])*pos12bitTorad;
-
                         }
                         for(unsigned char i=0;i<12;i++)
                         {
@@ -680,66 +1019,68 @@ int main(int argc, char **argv)
                         //                        }
                         pos12[i]=(unsigned int)pos12_double[i];
                     }
+#ifdef ENABLE_ACTUATOR_
                     mySam.setAllPos12(pos12,12);
-
+#endif
                 }
-
-                joint_state.header.stamp = ros::Time::now();
-                joint_state.position[0] = angle[0];
-                joint_state.position[1] = angle[1];
-                joint_state.position[2] = -angle[2];
-                joint_state.position[3] = angle[3];
-                joint_state.position[4] = -angle[4];
-                joint_state.position[5] = angle[5];
-                joint_state.position[6] = angle[6];
-                joint_state.position[7] = -angle[7];
-                joint_state.position[8] = angle[8];
-                joint_state.position[9] = angle[9];
-                joint_state.position[10] = angle[10];
-                joint_state.position[11] = angle[11];
-                myMessage.publish(joint_state);
-
             }
 
-            //================communication block=================
-            Recev_Data_hanlder();
-            if(myCom.flagDataReceived_readAllPos12)
-            {
-                myCom.flagDataReceived_readAllPos12=0;
-                myCom.flagDataAvailable_readAllPos12=1;
-                //=============================
-                for (unsigned char i=0;i<myCom.NumofSam;i++)
-                {
-                    cout <<dec<< myCom.samPos12[i]<<":";
-                }
-                cout<<endl;
+            joint_state.header.stamp = ros::Time::now();
+            joint_state.position[0] = angle[0];
+            joint_state.position[1] = angle[1];
+            joint_state.position[2] = -angle[2];
+            joint_state.position[3] = angle[3];
+            joint_state.position[4] = -angle[4];
+            joint_state.position[5] = angle[5];
+            joint_state.position[6] = angle[6];
+            joint_state.position[7] = -angle[7];
+            joint_state.position[8] = angle[8];
+            joint_state.position[9] = angle[9];
+            joint_state.position[10] = angle[10];
+            joint_state.position[11] = angle[11];
+            myMessage.publish(joint_state);
 
-                //                                for(unsigned char i=0;i<12;i++)
-                //                                {
-                //                                                    angle[i]=((double)myCom.samPos12[i]-(double)(samPos12_offset[i]))*pos12bitTorad;
-                //                                }
-
-                //                joint_state.header.stamp = ros::Time::now();
-                //                joint_state.position[0] = angle[0];
-                //                joint_state.position[1] = angle[1];
-                //                joint_state.position[2] = -angle[2];
-                //                joint_state.position[3] = angle[3];
-                //                joint_state.position[4] = -angle[4];
-                //                joint_state.position[5] = angle[5];
-                //                joint_state.position[6] = -angle[6];
-                //                joint_state.position[7] = -angle[7];
-                //                joint_state.position[8] = angle[8];
-                //                joint_state.position[9] = angle[9];
-                //                joint_state.position[10] = angle[10];
-                //                joint_state.position[11] = angle[11];
-                //                myMessage.publish(joint_state);
-            }
-
-            //======================== end of your code======================
-            ros::spinOnce();
         }
 
+        //================communication block=================
+        Recev_Data_hanlder();
+        if(myCom.flagDataReceived_readAllPos12)
+        {
+            myCom.flagDataReceived_readAllPos12=0;
+            myCom.flagDataAvailable_readAllPos12=1;
+            //=============================
+            for (unsigned char i=0;i<myCom.NumofSam;i++)
+            {
+                cout <<dec<< myCom.samPos12[i]<<":";
+            }
+            cout<<endl;
+
+            //                                for(unsigned char i=0;i<12;i++)
+            //                                {
+            //                                                    angle[i]=((double)myCom.samPos12[i]-(double)(samPos12_offset[i]))*pos12bitTorad;
+            //                                }
+
+            //                joint_state.header.stamp = ros::Time::now();
+            //                joint_state.position[0] = angle[0];
+            //                joint_state.position[1] = angle[1];
+            //                joint_state.position[2] = -angle[2];
+            //                joint_state.position[3] = angle[3];
+            //                joint_state.position[4] = -angle[4];
+            //                joint_state.position[5] = angle[5];
+            //                joint_state.position[6] = -angle[6];
+            //                joint_state.position[7] = -angle[7];
+            //                joint_state.position[8] = angle[8];
+            //                joint_state.position[9] = angle[9];
+            //                joint_state.position[10] = angle[10];
+            //                joint_state.position[11] = angle[11];
+            //                myMessage.publish(joint_state);
+        }
+
+        //======================== end of your code======================
+        ros::spinOnce();
     }
+
+    //    }
 
     cout << endl;
     cout << "SERIAL : " << Serial << " Device close." << endl;
@@ -1069,7 +1410,7 @@ void SAMmodule::setAllAverageTorque(const unsigned int *Atorq, unsigned char num
     unsigned char refIndex=2;
     for(unsigned char i=0; i<numOfSam;i++)
     {
-        if(*(Atorq+i)<4000)
+        if(*(Atorq+i)<4001)
         {
             ba[refIndex++]=i;//id
             ba[refIndex++]=(*(Atorq+i)>>7)&0x7F;
@@ -1091,7 +1432,7 @@ void SAMmodule::getAllAverageTorque()
     Send_Serial_String(Serial,ba,3);
 }
 
-void SAMmodule::setAllPDQuick(unsigned char *Pvalue, unsigned char *Dvalue, unsigned char numOfSam)
+void SAMmodule::setAllPDQuick(const unsigned char *Pvalue, const unsigned char *Dvalue, unsigned char numOfSam)
 {
     unsigned char ba[numOfSam*4+3];
     ba[0] = 0xff;
@@ -1136,6 +1477,16 @@ void Scene_class::setNumOfFrame(unsigned int value)
     numOfFrame = value;
 }
 
+void Scene_class::setDelayScene(unsigned int fr)
+{
+    this->setNumOfFrame(fr);
+    this->frame=0;
+    this->flag.start=0;
+    this->flag.finish=0;
+    this->flag.enable=1;
+    this->flag.delay=1;
+}
+
 void Scene_class::setUpMyScene(unsigned int fr, const unsigned int *beginpose, const unsigned int *endpose)
 {
     this->setNumOfFrame(fr);
@@ -1145,6 +1496,7 @@ void Scene_class::setUpMyScene(unsigned int fr, const unsigned int *beginpose, c
     this->flag.start=0;
     this->flag.finish=0;
     this->flag.enable=1;
+    this->flag.delay=0;
 }
 
 void Scene_class::setFrame(unsigned int value)
