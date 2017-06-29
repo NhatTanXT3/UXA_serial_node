@@ -119,6 +119,7 @@ Scene_class myscene;
 #define TASK_INIT_WALKING_  4
 #define TASK_WALK_1STEP_   5
 #define TASK_POSES_TEST_  6
+#define TASK_NEW_WALKING_ 7
 
 #define TASK_IDLE_   10
 typedef struct{
@@ -135,9 +136,9 @@ unsigned char Recev_chr[_SERIAL_BUFF_SIZE];
 unsigned char Store_chr[_SERIAL_BUFF_SIZE];
 
 
-const int samPos12_offset[12]={1640,1689,2050,2052,663,3446,1235,2910,2761,2163,1260,2341};// zero of the real system 12bits
-const unsigned char hardZeroPos[12]={96,100,127,128,21,235,65,193,182,136,67,150};// zero of the real system 8bit
-const int offsetZeroPos12[12]={-404,-355,6,8,-351,372,-809,866,717,119,-784,297};// (hardZero-softZero)*pos8toPos12
+const int samPos12_offset[12]={1640,1689,2050,2052,663,3446,1235,2910,2761,2163,1260,2370};// zero of the real system 12bits
+const unsigned char hardZeroPos[12]={96,100,127,128,21,235,65,193,182,136,67,153};// zero of the real system 8bit
+const int offsetZeroPos12[12]={-404,-355,6,8,-351,372,-809,866,717,119,-784,326};// (hardZero-softZero)*pos8toPos12
 
 const double degree = M_PI/180;
 const double pos12bitTorad=0.083*M_PI/180;
@@ -195,36 +196,229 @@ void mapSoftPose8ToPose12(const unsigned char *pose8,unsigned int *pose12,unsign
     for(unsigned char i=0;i<size;i++)
     {
         *(pose12+i)= (((double)(*(pose8+i)))*pos8toPos12_1+pos8toPos12_2+(double)offsetZeroPos12[i]);
-
     }
 }
 
-//void mapHardPose8ToPose12(unsigned char *pose8,unsigned int *pose12,unsigned char size){
-//    for(unsigned char i=0;i<size;i++)
-//    {
-//        *(pose12+i)= (((double)(*(pose8+i)))*pos8toPos12_1+pos8toPos12_2);
+/*
+ * ==========================Pose with zero origin=============================
+ */
 
-//    }
-//}
+union PoseType{
+    int angleArray[24];
+    struct{
+        int right_ankle_roll;
+        int left_ankle_roll;
+        int right_ankle_pitch;
+        int left_ankle_pitch;
+        int right_knee;
+        int left_knee;
+        int right_hip_pitch;
+        int left_hip_pitch;
+        int right_hip_roll;
+        int left_hip_roll;
+        int right_hip_yaw;
+        int left_hip_yaw;
+    }angle;
+};
+
+PoseType poseWalk_0;// init for walking
+PoseType poseWalk_1;// COM transfer to left leg
+PoseType poseWalk_2;// stand in left leg
+PoseType poseWalk_3;// step forward
+PoseType poseWalk_4;// step forward
+PoseType poseWalk_5;// COM transfer to right leg
+PoseType poseWalk_6;// stand in right leg
+PoseType poseWalk_7;// step forward
+// COM transfer to left leg
+void setUpWalking_1(){
+    int distance_2Leg=5;
+    int roll_angle=-15;
+    int knee_bend=40;
+    int ankle_bend=25;
+
+    poseWalk_1.angle.right_ankle_roll=roll_angle+distance_2Leg;
+    poseWalk_1.angle.left_ankle_roll=roll_angle-distance_2Leg;
+    poseWalk_1.angle.right_hip_roll=-poseWalk_1.angle.right_ankle_roll;
+    poseWalk_1.angle.left_hip_roll= -poseWalk_1.angle.left_ankle_roll;
+
+    poseWalk_1.angle.left_knee=-knee_bend;
+    poseWalk_1.angle.right_knee=knee_bend;
+    poseWalk_1.angle.right_ankle_pitch=-ankle_bend;
+    poseWalk_1.angle.left_ankle_pitch=+ankle_bend;
+    poseWalk_1.angle.right_hip_pitch= poseWalk_1.angle.right_ankle_pitch+poseWalk_1.angle.right_knee;
+    poseWalk_1.angle.left_hip_pitch= poseWalk_1.angle.left_ankle_pitch+poseWalk_1.angle.left_knee;
+}
+// stand by right leg
+void setUpWalking_2(){
+
+    int distance_2Leg=4;
+    // swing leg
+    poseWalk_2.angle.left_ankle_roll=-17-distance_2Leg;
+    poseWalk_2.angle.left_hip_roll=-poseWalk_2.angle.left_ankle_roll;
+    poseWalk_2.angle.left_knee=-80;
+    poseWalk_2.angle.left_hip_pitch=-35;
+    poseWalk_2.angle.left_ankle_pitch=poseWalk_2.angle.left_hip_pitch-poseWalk_2.angle.left_knee;
+
+    // stand leg
+    poseWalk_2.angle.right_ankle_roll=-17+distance_2Leg;
+    poseWalk_2.angle.right_hip_roll= -poseWalk_2.angle.right_ankle_roll;
+    poseWalk_2.angle.right_knee=40;
+    poseWalk_2.angle.right_ankle_pitch=-25;
+    poseWalk_2.angle.right_hip_pitch= poseWalk_2.angle.right_ankle_pitch+poseWalk_2.angle.right_knee;
+}
+
+// right leg step forward 1
+void setUpWalking_3(){
+
+    int distance_2Leg=8;
+    int forward_angle=0;
+    int hip_yaw=2;
+    // swing leg
+    poseWalk_3.angle.left_ankle_roll=-10;
+    poseWalk_3.angle.left_hip_roll=-poseWalk_3.angle.left_ankle_roll+10;
+    poseWalk_3.angle.left_knee=-65;
+    poseWalk_3.angle.left_hip_pitch=-40;
+    poseWalk_3.angle.left_ankle_pitch=poseWalk_3.angle.left_hip_pitch-poseWalk_3.angle.left_knee;
+
+    // stand leg
+    poseWalk_3.angle.right_ankle_roll=-15;
+    poseWalk_3.angle.right_hip_roll= -poseWalk_3.angle.right_ankle_roll;
+    poseWalk_3.angle.right_knee=40;
+    poseWalk_3.angle.right_ankle_pitch=poseWalk_2.angle.right_ankle_pitch-forward_angle;
+    poseWalk_3.angle.right_hip_pitch= poseWalk_3.angle.right_ankle_pitch+poseWalk_3.angle.right_knee;
+
+    poseWalk_3.angle.right_hip_yaw=hip_yaw;
+    poseWalk_3.angle.left_hip_yaw=hip_yaw;
+
+}
+
+// right leg step forward 2
+void setUpWalking_4(){
+
+    int distance_2Leg=8;
+    int forward_angle=4;
+    int hip_yaw=0;
+    // swing leg
+    poseWalk_4.angle.left_ankle_roll=-10;
+    poseWalk_4.angle.left_hip_roll=-poseWalk_4.angle.left_ankle_roll;
+    poseWalk_4.angle.left_knee=-40;
+    poseWalk_4.angle.left_hip_pitch=-20;
+    poseWalk_4.angle.left_ankle_pitch=poseWalk_4.angle.left_hip_pitch-poseWalk_4.angle.left_knee;
+
+    // stand leg
+    poseWalk_4.angle.right_ankle_roll=-2;
+    poseWalk_4.angle.right_hip_roll= -poseWalk_4.angle.right_ankle_roll;
+    poseWalk_4.angle.right_knee=35;
+    poseWalk_4.angle.right_ankle_pitch=poseWalk_2.angle.right_ankle_pitch-forward_angle;
+    poseWalk_4.angle.right_hip_pitch= poseWalk_4.angle.right_ankle_pitch+poseWalk_4.angle.right_knee;
+
+    poseWalk_4.angle.right_hip_yaw=hip_yaw;
+    poseWalk_4.angle.left_hip_yaw=hip_yaw;
+
+}
+
+// COM transfer to right leg
+void setUpWalking_5(){
+
+    int distance_2Leg=8;
+    int forward_angle=4;
+    int hip_yaw=0;
+    // swing leg
+    poseWalk_5.angle.left_ankle_roll=5;
+    poseWalk_5.angle.left_hip_roll=-poseWalk_5.angle.left_ankle_roll;
+    poseWalk_5.angle.left_knee=-40;
+    poseWalk_5.angle.left_hip_pitch=-15;
+    poseWalk_5.angle.left_ankle_pitch=poseWalk_5.angle.left_hip_pitch-poseWalk_5.angle.left_knee;
+
+    // stand leg
+    poseWalk_5.angle.right_ankle_roll=10;
+    poseWalk_5.angle.right_hip_roll= -poseWalk_5.angle.right_ankle_roll;
+    poseWalk_5.angle.right_knee=35;
+    poseWalk_5.angle.right_ankle_pitch=poseWalk_2.angle.right_ankle_pitch-forward_angle;
+    poseWalk_5.angle.right_hip_pitch= poseWalk_5.angle.right_ankle_pitch+poseWalk_5.angle.right_knee;
+
+    poseWalk_5.angle.right_hip_yaw=hip_yaw;
+    poseWalk_5.angle.left_hip_yaw=hip_yaw;
+
+}
+
+// stand by left leg
+void setUpWalking_6(){
+
+    int distance_2Leg=4;
+    // swing leg
+    poseWalk_6.angle.left_ankle_roll=17-distance_2Leg;
+    poseWalk_6.angle.left_hip_roll=-poseWalk_6.angle.left_ankle_roll;
+    poseWalk_6.angle.left_knee=-40;
+    poseWalk_6.angle.left_hip_pitch=-25;
+    poseWalk_6.angle.left_ankle_pitch=poseWalk_6.angle.left_hip_pitch-poseWalk_6.angle.left_knee;
+
+    // stand leg
+    poseWalk_6.angle.right_ankle_roll=17+distance_2Leg;
+    poseWalk_6.angle.right_hip_roll= -poseWalk_6.angle.right_ankle_roll;
+    poseWalk_6.angle.right_knee=80;
+    poseWalk_6.angle.right_ankle_pitch=-35;
+    poseWalk_6.angle.right_hip_pitch= poseWalk_6.angle.right_ankle_pitch+poseWalk_6.angle.right_knee;
+}
+
+// left leg step forward 2
+void setUpWalking_7(){
+
+    int distance_2Leg=8;
+    int forward_angle=0;
+    int hip_yaw=0;
+    // swing leg
+    poseWalk_7.angle.right_ankle_roll=10;
+    poseWalk_7.angle.right_hip_roll=-poseWalk_7.angle.right_ankle_roll;
+    poseWalk_7.angle.right_knee=40;
+    poseWalk_7.angle.right_hip_pitch=20;
+    poseWalk_7.angle.right_ankle_pitch=poseWalk_7.angle.right_hip_pitch-poseWalk_7.angle.right_knee;
+
+    // stand leg
+    poseWalk_7.angle.left_ankle_roll=2;
+    poseWalk_7.angle.left_hip_roll= -poseWalk_7.angle.left_ankle_roll;
+    poseWalk_7.angle.left_knee=-35;
+    poseWalk_7.angle.left_ankle_pitch=poseWalk_6.angle.left_ankle_pitch-forward_angle;
+    poseWalk_7.angle.left_hip_pitch= poseWalk_7.angle.left_ankle_pitch+poseWalk_7.angle.left_knee;
+
+    poseWalk_7.angle.right_hip_yaw=hip_yaw;
+    poseWalk_7.angle.left_hip_yaw=hip_yaw;
+
+}
+
+// used for Pose with zero origin
+void mapPose8ToPose12(const int *pose8,unsigned int *pose12,unsigned char size){
+    for(unsigned char i=0;i<size;i++)
+    {
+        *(pose12+i)= (((double)(*(pose8+i)+(int)softZeroPos[i]))*pos8toPos12_1+pos8toPos12_2+(double)offsetZeroPos12[i]);
+    }
+}
+
 
 unsigned char Pose_test[12];
 
-const int hip_pitch_offset=5;
-const int hip_roll_offset=2;
-int hip_pitch_angle;
-int hip_roll_angle;
+const int hip_pitch_offset=5; // till of the boty
+const int ankle_roll_offset=4;// distance between 2 leg
 
+int hip_roll_offset;// distance between 2 leg
 int knee_angle;
 int ankle_pitch_angle;
 int ankle_roll_angle;
+
+int hip_pitch_angle;
+int hip_roll_angle;
 //======== COM transfer ==============
 void process_pose(){
     hip_pitch_angle=-knee_angle-ankle_pitch_angle;
     hip_roll_angle=-ankle_roll_angle;
+    hip_roll_offset=-ankle_roll_offset;
+
+
+
 
     //ankle_roll
-    Pose_test[0]=(int)softZeroPos[0]+ankle_roll_angle;
-    Pose_test[1]=(int)softZeroPos[1]+ankle_roll_angle;
+    Pose_test[0]=(int)softZeroPos[0]+ankle_roll_angle+ankle_roll_offset;
+    Pose_test[1]=(int)softZeroPos[1]+ankle_roll_angle-ankle_roll_offset;
     //ankle_pitch
     Pose_test[2]=(int)softZeroPos[2]-ankle_pitch_angle;
     Pose_test[3]=(int)softZeroPos[3]+ankle_pitch_angle;
@@ -235,46 +429,61 @@ void process_pose(){
     Pose_test[6]=(int)softZeroPos[6]+hip_pitch_angle+hip_pitch_offset;
     Pose_test[7]=(int)softZeroPos[7]-hip_pitch_angle-hip_pitch_offset;
     //hip_roll
-    Pose_test[8]=(int)softZeroPos[8]+hip_roll_angle-hip_roll_offset;
-    Pose_test[9]=(int)softZeroPos[9]+hip_roll_angle+hip_roll_offset;
+    Pose_test[8]=(int)softZeroPos[8]+hip_roll_angle+hip_roll_offset;
+    Pose_test[9]=(int)softZeroPos[9]+hip_roll_angle-hip_roll_offset;
     //hip_yaw
     Pose_test[10]=softZeroPos[10];
     Pose_test[11]=softZeroPos[11];
 }
+
+
 
 #define ID_LEFT_FOOT 0
 #define ID_RIGHT_FOOT 1
 //standing on one foot
 
 
-int st_ankle_roll_offset_2;
+const int ankle_roll_offset_2=4;// distance between 2 leg
+int hip_roll_offset_2;// distance between 2 leg
+int st_ankle_roll_offset_2;//force offset
+
+int st_knee_2;
+int st_ankle_pitch_2;
 int sw_knee_angle_2;
 int sw_hip_pitch_angle_2;
-int sw_hip_roll_angle_2;
+int sw_ankle_roll_2;
+int st_ankle_roll_2;
 
+int st_hip_roll_2;
+int sw_hip_roll_angle_2;
+int st_hip_pitch_2;
 int st_hip_roll_offset_2;
 int sw_ankle_pitch_angle_2;
 //======== stand 1 leg ==============
 void process_pose_2(unsigned char foot_ID){
     sw_ankle_pitch_angle_2=-sw_knee_angle_2-sw_hip_pitch_angle_2;
     st_hip_roll_offset_2=-st_ankle_roll_offset_2;
+    st_hip_pitch_2=-st_knee_2-st_ankle_pitch_2;
+    sw_hip_roll_angle_2=-sw_ankle_roll_2;
+    hip_roll_offset_2=-ankle_roll_offset_2;
+    st_hip_roll_2=-st_ankle_roll_2;
     if(foot_ID==ID_LEFT_FOOT){
         //============ankle_roll============
-        Pose_test[0]=(int)softZeroPos[0]+ankle_roll_angle+st_ankle_roll_offset_2;
-        //        Pose_test[1]=(int)softZeroPos[1]+ankle_roll_angle;
+        Pose_test[0]=(int)softZeroPos[0]+st_ankle_roll_2+st_ankle_roll_offset_2+ankle_roll_offset_2;
+        Pose_test[1]=(int)softZeroPos[1]+sw_ankle_roll_2-ankle_roll_offset_2;
         //============hip_roll==============
-        Pose_test[8]=(int)softZeroPos[8]+hip_roll_angle+st_hip_roll_offset_2;
-        //        Pose_test[9]=(int)softZeroPos[9]+hip_roll_angle;
+        Pose_test[8]=(int)softZeroPos[8]+st_hip_roll_2+st_hip_roll_offset_2+hip_roll_offset_2;
+        Pose_test[9]=(int)softZeroPos[9]+sw_hip_roll_angle_2-hip_roll_offset_2;
 
         //==========ankle_pitch=============
-        //        Pose_test[2]=(int)softZeroPos[2]-ankle_pitch_angle;
+        Pose_test[2]=(int)softZeroPos[2]-st_ankle_pitch_2;
         Pose_test[3]=(int)softZeroPos[3]+sw_ankle_pitch_angle_2;
         //==========hip_pitch===============
-        //        Pose_test[6]=(int)softZeroPos[6]+hip_pitch_angle;
+        Pose_test[6]=(int)softZeroPos[6]+st_hip_pitch_2;
         Pose_test[7]=(int)softZeroPos[7]-sw_hip_pitch_angle_2;
 
-        //==========knee====================
-        //        Pose_test[4]=(int)softZeroPos[4]-knee_angle;
+        //        ==========knee====================
+        Pose_test[4]=(int)softZeroPos[4]-st_knee_2;
         Pose_test[5]=(int)softZeroPos[5]+sw_knee_angle_2;
 
 
@@ -311,7 +520,12 @@ int forward_pitch_3;
 int st_knee_3;
 int sw_knee_3;
 int sw_hip_pitch_3;
+int sw_ankle_roll_3;
+int hip_yaw_3;
+int st_ankle_roll_3;
 
+int st_hip_roll_3;
+int sw_hip_roll_3;
 int st_ankle_pitch_3;
 int st_hip_pitch_3;
 int sw_ankle_pitch_3;
@@ -320,13 +534,15 @@ void process_pose_3(unsigned char foot_ID){
     st_ankle_pitch_3=ankle_pitch_angle+forward_pitch_3;
     sw_ankle_pitch_3=-sw_knee_3-sw_hip_pitch_3;
     st_hip_pitch_3=-st_knee_3-st_ankle_pitch_3;
+    sw_hip_roll_3=-sw_ankle_roll_3;;
+    st_hip_roll_3=-st_ankle_roll_3;
     if(foot_ID==ID_LEFT_FOOT){
         //============ankle_roll============
-        Pose_test[0]=(int)softZeroPos[0]+ankle_roll_angle;
-        //        Pose_test[1]=(int)softZeroPos[1]+ankle_roll_angle;
+        Pose_test[0]=(int)softZeroPos[0]+st_ankle_roll_3;
+        Pose_test[1]=(int)softZeroPos[1]+sw_ankle_roll_3;
         //============hip_roll==============
-        Pose_test[8]=(int)softZeroPos[8]+hip_roll_angle+st_hip_roll_offset_2;
-        //        Pose_test[9]=(int)softZeroPos[9]+hip_roll_angle;
+        Pose_test[8]=(int)softZeroPos[8]+st_hip_roll_3+st_hip_roll_offset_2;
+        Pose_test[9]=(int)softZeroPos[9]+sw_hip_roll_3;
 
         //==========ankle_pitch=============
         Pose_test[2]=(int)softZeroPos[2]-st_ankle_pitch_3;
@@ -342,16 +558,16 @@ void process_pose_3(unsigned char foot_ID){
 
 
         //hip_yaw
-        //        Pose_test[10]=softZeroPos[10];
-        //        Pose_test[11]=softZeroPos[11];
+        Pose_test[10]=softZeroPos[10]+hip_yaw_3;
+        Pose_test[11]=softZeroPos[11]+hip_yaw_3;
     }
     else{
         //============ankle_roll============
-//        Pose_test[0]=(int)softZeroPos[0]+ankle_roll_angle;
-                Pose_test[1]=(int)softZeroPos[1]-ankle_roll_angle;
+        //        Pose_test[0]=(int)softZeroPos[0]+ankle_roll_angle;
+        Pose_test[1]=(int)softZeroPos[1]-ankle_roll_angle;
         //============hip_roll==============
-//        Pose_test[8]=(int)softZeroPos[8]+hip_roll_angle+st_hip_roll_offset_2;
-                Pose_test[9]=(int)softZeroPos[9]-hip_roll_angle+st_hip_roll_offset_2;
+        //        Pose_test[8]=(int)softZeroPos[8]+hip_roll_angle+st_hip_roll_offset_2;
+        Pose_test[9]=(int)softZeroPos[9]-hip_roll_angle+st_hip_roll_offset_2;
         //==========ankle_pitch=============
         Pose_test[2]=(int)softZeroPos[2]-sw_ankle_pitch_3;
         Pose_test[3]=(int)softZeroPos[3]+st_ankle_pitch_3;
@@ -461,6 +677,7 @@ int main(int argc, char **argv)
     ros::init(argc, argv, "uxa_serial");
     ros::NodeHandle n;
     ros::Publisher myMessage = n.advertise<sensor_msgs::JointState>("UXAJointState", 1000);
+    ros::Publisher myMessage_2 = n.advertise<std_msgs::Float32>("mplot", 100);
 
     sensor_msgs::JointState joint_state;
     joint_state.name.resize(12);
@@ -522,7 +739,7 @@ int main(int argc, char **argv)
     mapSoftPose8ToPose12((unsigned char*)softZeroPos,(unsigned int*)pos12,12);
     //        mySam.setAllPos12(pos12,12);
 
-    task.id=TASK_POSES_TEST_;
+    task.id=TASK_NEW_WALKING_;
     while(ros::ok())
     {
         loop_rate.sleep();
@@ -551,6 +768,83 @@ int main(int argc, char **argv)
             //================
 
             switch (task.id){
+            case TASK_NEW_WALKING_:
+
+                if(task.startFlag==0){
+                    task.startFlag=1;
+                    task.scene=0;
+                    unsigned int beginPose12[12];
+                    unsigned int endPose12[12];
+                    mapSoftPose8ToPose12(Pose_init_walking,beginPose12,12);
+                    setUpWalking_1();
+                    mapPose8ToPose12(poseWalk_1.angleArray,endPose12,12);
+                    myscene.setUpMyScene(100,beginPose12,endPose12);
+                }
+                else if(myscene.flag.finish)
+                {
+                    myscene.flag.finish=0;
+                    task.scene++;
+
+                    unsigned int beginPose12[12];
+                    unsigned int endPose12[12];
+                    switch(task.scene){
+                    case 0:
+
+                        break;
+                    case 1:
+                        mapPose8ToPose12(poseWalk_1.angleArray,beginPose12,12);
+                        setUpWalking_2();
+                        mapPose8ToPose12(poseWalk_2.angleArray,endPose12,12);
+                        myscene.setUpMyScene(100,beginPose12,endPose12);
+                        break;
+
+                    case 2:
+                        mapPose8ToPose12(poseWalk_2.angleArray,beginPose12,12);
+                        setUpWalking_3();
+                        mapPose8ToPose12(poseWalk_3.angleArray,endPose12,12);
+                        myscene.setUpMyScene(100,beginPose12,endPose12);
+                        break;
+                    case 3:
+                        mapPose8ToPose12(poseWalk_3.angleArray,beginPose12,12);
+                        setUpWalking_4();
+                        mapPose8ToPose12(poseWalk_4.angleArray,endPose12,12);
+                        myscene.setUpMyScene(100,beginPose12,endPose12);
+                        break;
+
+                    case 4:
+                        mapPose8ToPose12(poseWalk_4.angleArray,beginPose12,12);
+                        setUpWalking_5();
+                        mapPose8ToPose12(poseWalk_5.angleArray,endPose12,12);
+                        myscene.setUpMyScene(100,beginPose12,endPose12);
+                        break;
+                    case 5:
+                        mapPose8ToPose12(poseWalk_5.angleArray,beginPose12,12);
+                        setUpWalking_6();
+                        mapPose8ToPose12(poseWalk_6.angleArray,endPose12,12);
+                        myscene.setUpMyScene(100,beginPose12,endPose12);
+                        break;
+                    case 6:
+                        mapPose8ToPose12(poseWalk_6.angleArray,beginPose12,12);
+                        setUpWalking_7();
+                        mapPose8ToPose12(poseWalk_7.angleArray,endPose12,12);
+                        myscene.setUpMyScene(100,beginPose12,endPose12);
+                        break;
+                    case 7:
+                        break;
+                    default:
+                        task.finishFlag=1;
+                        break;
+                    }
+                    //                task.finishFlag=1;
+                }
+                else if(task.finishFlag){
+                    task.finishFlag=0;
+                    task.startFlag=0;
+                    task.id=TASK_IDLE_;
+
+                }
+                break;
+
             case TASK_POSES_TEST_:
                 if(task.startFlag==0){
                     task.startFlag=1;
@@ -560,7 +854,7 @@ int main(int argc, char **argv)
 
                     knee_angle =-40;//40 (8bit angle/1.08degree)
                     ankle_pitch_angle=25;
-                    ankle_roll_angle=-8;
+                    ankle_roll_angle=-12;
                     process_pose();
                     mapSoftPose8ToPose12(Pose_init_walking,beginPose12,12);
 
@@ -593,18 +887,20 @@ int main(int argc, char **argv)
                     case 1:
 
 
-                        knee_angle =-40;//40 (8bit angle/1.08degree)
-                        ankle_pitch_angle=25;
-                        ankle_roll_angle=-8;
-                        process_pose();
+
                         mapSoftPose8ToPose12(Pose_test,beginPose12,12);
 
-                        sw_knee_angle_2=-60;
-                        sw_hip_pitch_angle_2=40;
                         st_ankle_roll_offset_2=0;
+                        sw_ankle_roll_2=-8;
+                        sw_knee_angle_2=-70;
+                        sw_hip_pitch_angle_2=35;
+                        st_ankle_pitch_2=25;
+                        st_knee_2=-35;
+                        st_ankle_roll_2=-16;
                         process_pose_2(ID_LEFT_FOOT);
                         mapSoftPose8ToPose12(Pose_test,endPose12,12);
-                        myscene.setUpMyScene(50,beginPose12,endPose12);
+                        myscene.setUpMyScene(40,beginPose12,endPose12);
+
                         break;
                     case 2:
                         //                            myscene.setDelayScene(300);
@@ -615,12 +911,17 @@ int main(int argc, char **argv)
                         forward_pitch_3=7;
                         st_knee_3=-30;
                         sw_knee_3=-40;
-                        sw_hip_pitch_3=25;
+                        sw_hip_pitch_3=20;
+                        sw_ankle_roll_3=-15;
+                        hip_yaw_3=-2;
+                        st_ankle_roll_3=-4;
 
                         process_pose_3(ID_LEFT_FOOT);
                         mapSoftPose8ToPose12(Pose_test,endPose12,12);
-                        myscene.setUpMyScene(50,beginPose12,endPose12);
+                        myscene.setUpMyScene(40,beginPose12,endPose12);
+
                         break;
+
                     case 3:
                         mapSoftPose8ToPose12(Pose_test,beginPose12,12);
 
@@ -632,8 +933,8 @@ int main(int argc, char **argv)
                         process_pose_4();
 
                         mapSoftPose8ToPose12(Pose_test,endPose12,12);
-                        myscene.setUpMyScene(300,beginPose12,endPose12);
-
+                        myscene.setUpMyScene(100,beginPose12,endPose12);
+                        task.scene=6;
                         break;
                     case 4:
                         mapSoftPose8ToPose12(Pose_test,beginPose12,12);
@@ -668,7 +969,7 @@ int main(int argc, char **argv)
                 else if(task.finishFlag){
                     task.finishFlag=0;
                     task.startFlag=0;
-                    task.id=TASK_INIT_;
+                    task.id=TASK_IDLE_;
 
                 }
                 break;
@@ -738,6 +1039,7 @@ int main(int argc, char **argv)
                     task.startFlag=1;
                     unsigned int endPose12[12];
                     mapSoftPose8ToPose12(Pose_init_walking,endPose12,12);
+
                     //                        mapSoftPose8ToPose12(Pose_M04_4,endPose12,12);
                     myscene.setUpMyScene(300,currentSamPos12,endPose12);
                 }
@@ -745,7 +1047,7 @@ int main(int argc, char **argv)
                 else if(task.finishFlag){
                     task.finishFlag=0;
                     task.startFlag=0;
-                    task.id=TASK_POSES_TEST_;
+                    task.id=TASK_NEW_WALKING_;
                 }
                 else if(myscene.flag.finish)
                 {
@@ -1039,6 +1341,9 @@ int main(int argc, char **argv)
             joint_state.position[10] = angle[10];
             joint_state.position[11] = angle[11];
             myMessage.publish(joint_state);
+            std_msgs::Float32 a;
+            a.data=angle[0];
+            myMessage_2.publish(a);
 
         }
 
@@ -1080,7 +1385,7 @@ int main(int argc, char **argv)
         ros::spinOnce();
     }
 
-    //    }
+    //    }// if serial
 
     cout << endl;
     cout << "SERIAL : " << Serial << " Device close." << endl;

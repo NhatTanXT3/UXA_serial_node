@@ -16,6 +16,8 @@ using namespace std;
 //#include <uxa_serial_msgs/receive.h>
 //#include <uxa_serial_msgs/transmit.h>
 #include "sensor_msgs/JointState.h"
+#include "std_msgs/Float32.h"
+//#include "mySerial"
 #define _SERIAL_PORT "/dev/ttyUSB0"
 #define _SERIAL_BUFF_SIZE    100
 
