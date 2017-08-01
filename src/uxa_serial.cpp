@@ -43,20 +43,10 @@ void Timer_handler(){
 /*
  * ===============  communication=====================
  */
-//#define PC_SAM_READ_ALL_POS12_ 0xF0
+
 #define PC_SAM_READ_ALL_POS12_ 0xCC
-//#define PC_SAM_SP_MODE_3_ 0xAA
-//#define PC_SAM_SP_MODE_4_ 0x95
-//#define PC_SAM_SP_MODE_5_ 0xEC
-//#define PC_SAM_SP_MODE_6_ 0x88
-//#define PC_SAM_SP_MODE_7_ 0x81
-//#define PC_SAM_SP_MODE_8_ 0xBB
+#define PC_SAM_READ_ALL_POS12_FULL_ 0x99
 
-//#define PC_SAM_SP_MODE_9_ 0xBD//Set Average Torque of many SAMs
-//#define PC_SAM_SP_MODE_10_ 0xBF//Read Average Torque of many SAMs
-
-//#define PC_SAM_SP_MODE_11_ 0xC1 //Set quick PD of many SAMs
-//#define PC_SAM_SP_MODE_12_ 0xC3//Read Quick PD of many SAMs
 unsigned char flag_capture=0;
 unsigned char flag_receive=0;
 unsigned char dataIndex=0;
@@ -135,9 +125,9 @@ unsigned char Trans_chr[_SERIAL_BUFF_SIZE];
 unsigned char Recev_chr[_SERIAL_BUFF_SIZE];
 unsigned char Store_chr[_SERIAL_BUFF_SIZE];
 
-
-const int samPos12_offset[12]={1640,1689,2050,2052,663,3446,1235,2910,2761,2163,1260,2370};// zero of the real system 12bits
-const unsigned char hardZeroPos[12]={96,100,127,128,21,235,65,193,182,136,67,153};// zero of the real system 8bit
+const int samPos12_offset[30]={1640,1689,2050,2052,663,3446,1235,2910,2761,2163,1260,2370,
+                               2025,2050,2050,2050,2050,2050,3100,940,0,0,2256,1500,2050};// zero of the real system 12bits
+//const unsigned char hardZeroPos[12]={96,100,127,128,21,235,65,193,182,136,67,153};// zero of the real system 8bit
 const int offsetZeroPos12[12]={-404,-355,6,8,-351,372,-809,866,717,119,-784,326};// (hardZero-softZero)*pos8toPos12
 
 const double degree = M_PI/180;
@@ -232,6 +222,9 @@ PoseType poseWalk_5;// COM transfer to right leg
 PoseType poseWalk_6;// stand in right leg
 PoseType poseWalk_7;// step forward
 // COM transfer to left leg
+unsigned char walking_step_count=0;
+unsigned char system_finish=0;
+#define WALKING_STEP_ 2
 void setUpWalking_0(){
     int distance_2Leg=4;
     int roll_angle=0;
@@ -402,23 +395,6 @@ void setUpWalking_7(){
 
     poseWalk_7.angle.right_hip_yaw=hip_yaw;
     poseWalk_7.angle.left_hip_yaw=hip_yaw;
-
-    //    int distance_2Leg=6;
-    //    int roll_angle=10;
-    //    int knee_bend=30;
-    //    int ankle_bend=20;
-
-    //    poseWalk_7.angle.right_ankle_roll=roll_angle+distance_2Leg;
-    //    poseWalk_7.angle.left_ankle_roll=roll_angle-distance_2Leg;
-    //    poseWalk_7.angle.right_hip_roll=-poseWalk_7.angle.right_ankle_roll;
-    //    poseWalk_7.angle.left_hip_roll= -poseWalk_7.angle.left_ankle_roll;
-
-    //    poseWalk_7.angle.left_knee=-knee_bend;
-    //    poseWalk_7.angle.right_knee=knee_bend;
-    //    poseWalk_7.angle.right_ankle_pitch=-ankle_bend;
-    //    poseWalk_7.angle.left_ankle_pitch=+ankle_bend;
-    //    poseWalk_7.angle.right_hip_pitch= poseWalk_7.angle.right_ankle_pitch+poseWalk_7.angle.right_knee;
-    //    poseWalk_7.angle.left_hip_pitch= poseWalk_7.angle.left_ankle_pitch+poseWalk_7.angle.left_knee;
 }
 
 // used for Pose with zero origin
@@ -685,6 +661,7 @@ public:
     void setPDQuick(unsigned char ID,unsigned char Pvalue,unsigned char Dvalue);
 
     void getAllPos12();
+    void getAllPos12Full();
     void getAllPos8Torq8();
     void setAllPassive();
     void SAM_Power_enable(unsigned char state);
@@ -698,68 +675,63 @@ public:
 SAMmodule mySam;
 
 
-double angle[24];
-double delta_angle[24];
-double pos12_double[24];
-unsigned int pos12[24];
-double delta_pos12[24];
-unsigned int currentSamPos12[24];
+double angle[30];
+double delta_angle[30];
+double pos12_double[30];
+unsigned int pos12[30];
+double delta_pos12[30];
+unsigned int currentSamPos12[30];
 
 
 int main(int argc, char **argv)
 {
-
     ros::init(argc, argv, "uxa_serial");
     ros::NodeHandle n;
     ros::Publisher myMessage = n.advertise<sensor_msgs::JointState>("UXAJointState", 1000);
-    ros::Publisher myMessage_2 = n.advertise<std_msgs::Float32>("mplot", 100);
 
     sensor_msgs::JointState joint_state;
-    joint_state.name.resize(12);
-    joint_state.position.resize(12);
-    joint_state.name[0] ="Joint0";
-    joint_state.name[1] ="Joint1";
-    joint_state.name[2] ="Joint2";
-    joint_state.name[3] ="Joint3";
-    joint_state.name[4] ="Joint4";
-    joint_state.name[5] ="Joint5";
-    joint_state.name[6] ="Joint6";
-    joint_state.name[7] ="Joint7";
-    joint_state.name[8] ="Joint8";
-    joint_state.name[9] ="Joint9";
-    joint_state.name[10] ="Joint10";
-    joint_state.name[11] ="Joint11";
-
-    //    ros::Publisher uxa_serial_pub = n.advertise<uxa_serial_msgs::receive>("uxa_serial_publisher", _MSG_BUFF_SIZE);
-    //    ros::Subscriber uxa_serial_sub = n.subscribe<uxa_serial_msgs::transmit>("uxa_serial_subscriber", _MSG_BUFF_SIZE, rev_func);
+    joint_state.name.resize(24);
+    joint_state.position.resize(24);
+    joint_state.name[0] ="J0";
+    joint_state.name[1] ="J1";
+    joint_state.name[2] ="J0_2";
+    joint_state.name[3] ="J1_3";
+    joint_state.name[4] ="J2_4";
+    joint_state.name[5] ="J3_5";
+    joint_state.name[6] ="J4_6";
+    joint_state.name[7] ="J5_7";
+    joint_state.name[8] ="J6_8";
+    joint_state.name[9] ="J7_9";
+    joint_state.name[10] ="J8_10";
+    joint_state.name[11] ="J9_11";
+    joint_state.name[12] ="J12_14";
+    joint_state.name[13] ="J13_15";
+    joint_state.name[14] ="J14_16";
+    joint_state.name[15] ="J15_17";
+    joint_state.name[16] ="J16_18";
+    joint_state.name[17] ="J17_19";
+    joint_state.name[18] ="J18";
+    joint_state.name[19] ="J19";
+    joint_state.name[20] ="J22_23_13_12";
+    joint_state.name[21] ="J23_24";
+    joint_state.name[22] ="J24";
 
     ros::Rate loop_rate(LOOP_RATE_1000Hz_);
-
     if((Serial = Init_Serial(_SERIAL_PORT)) != -1)
     {
 
         memset(Trans_chr, '\0', sizeof(Trans_chr));
         memset(Recev_chr, '\0', sizeof(Recev_chr));
 
-        //        unsigned char cnt = 0;
-        //        mySam.setSamPos12(0,1700);
-
-        //        sleep(1);
-        //        mySam.setSamPos12(0,1500);
-
-        //        sleep(1);
-        //        mySam.setSamPos12(0,1800);
-
-        //        sleep(1);
 
         cout << "SERIAL : " <<  "Serial communication stand by." << endl << endl;
 
 
-        unsigned int taskCount=0;
-        unsigned char flagTask=0;
+//        unsigned int taskCount=0;
+//        unsigned char flagTask=0;
 
-        unsigned int samPos12;
-        unsigned char samID;
+//        unsigned int samPos12;
+//        unsigned char samID;
 
 
 
@@ -772,7 +744,6 @@ int main(int argc, char **argv)
         }
 
         mapSoftPose8ToPose12((unsigned char*)softZeroPos,(unsigned int*)pos12,12);
-        //        mySam.setAllPos12(pos12,12);
 
         task.id=TASK_INIT_;
         while(ros::ok())
@@ -788,11 +759,6 @@ int main(int argc, char **argv)
                 FlagTimer.Hz_50=0;
                 //================
                 mySam.getAllPos12();
-                //                for (unsigned char i=0;i<12;i++)
-                //                {
-                //                    cout <<angle[i]<<":";
-                //                }
-                //                cout<<endl;
 
             }
 
@@ -806,6 +772,7 @@ int main(int argc, char **argv)
                 case TASK_NEW_WALKING_:
 
                     if(task.startFlag==0){
+                        walking_step_count++;
                         task.startFlag=1;
                         task.scene=0;
                         unsigned int beginPose12[12];
@@ -832,13 +799,6 @@ int main(int argc, char **argv)
                             setUpWalking_2();
                             mapPose8ToPose12(poseWalk_2.angleArray,endPose12,12);
                             myscene.setUpMyScene(30,beginPose12,endPose12);
-                            break;
-
-                            //                    case 2:
-                            //                        mapPose8ToPose12(poseWalk_2.angleArray,beginPose12,12);
-                            //                        setUpWalking_3();
-                            //                        mapPose8ToPose12(poseWalk_3.angleArray,endPose12,12);
-                            //                        myscene.setUpMyScene(100,beginPose12,endPose12);
                             break;
                         case 2:
                             mapPose8ToPose12(poseWalk_2.angleArray,beginPose12,12);
@@ -879,13 +839,19 @@ int main(int argc, char **argv)
                             task.finishFlag=1;
                             break;
                         }
-                        //                task.finishFlag=1;
+
                     }
                     else if(task.finishFlag){
                         task.finishFlag=0;
                         task.startFlag=0;
-                        task.id=TASK_NEW_WALKING_;
-
+                        if(walking_step_count<=WALKING_STEP_)
+                        {
+                            task.id=TASK_NEW_WALKING_;
+                        }else
+                        {
+                             task.id=TASK_IDLE_;
+                             system_finish=1;
+                        }
                     }
                     break;
 
@@ -930,9 +896,7 @@ int main(int argc, char **argv)
                             break;
                         case 1:
 
-
-
-                            mapSoftPose8ToPose12(Pose_test,beginPose12,12);
+                           mapSoftPose8ToPose12(Pose_test,beginPose12,12);
 
                             st_ankle_roll_offset_2=0;
                             sw_ankle_roll_2=-8;
@@ -1082,10 +1046,9 @@ int main(int argc, char **argv)
                     if(task.startFlag==0){
                         task.startFlag=1;
                         unsigned int endPose12[12];
-                        //                        mapSoftPose8ToPose12(Pose_init_walking,endPose12,12);
-                        setUpWalking_0();
-                        //                        poseWalk_1.angleArray
-                        mapPose8ToPose12( poseWalk_0.angleArray,endPose12,12);
+                        mapSoftPose8ToPose12(Pose_sitdown,endPose12,12);
+                        //                        setUpWalking_0();
+                        //                        mapPose8ToPose12( poseWalk_0.angleArray,endPose12,12);
                         //                        mapSoftPose8ToPose12(Pose_M04_4,endPose12,12);
                         myscene.setUpMyScene(300,currentSamPos12,endPose12);
                     }
@@ -1093,7 +1056,7 @@ int main(int argc, char **argv)
                     else if(task.finishFlag){
                         task.finishFlag=0;
                         task.startFlag=0;
-                        task.id=TASK_NEW_WALKING_;
+                        task.id=TASK_STANDING_;
                     }
                     else if(myscene.flag.finish)
                     {
@@ -1103,7 +1066,6 @@ int main(int argc, char **argv)
                         usleep(1000);
                         mySam.setAllPDQuick(walking_samP,walking_samD,12);
                         usleep(1000);
-
                     }
                     break;
 
@@ -1144,8 +1106,14 @@ int main(int argc, char **argv)
                     else if(task.finishFlag){
                         task.finishFlag=0;
                         task.startFlag=0;
+                        if(system_finish)
+                        {
+                            task.id=TASK_IDLE_;
+                        }
+                        else{
                         task.id=TASK_INIT_WALKING_;
-                        sleep(3);
+                        }
+                        sleep(1);
                     }
                     break;
 
@@ -1200,7 +1168,10 @@ int main(int argc, char **argv)
                         unsigned int beginPose12[12];
                         unsigned int endPose12[12];
                         mapSoftPose8ToPose12(Pose_standing_2,beginPose12,12);
-                        mapSoftPose8ToPose12(Pose_init_walking,endPose12,12);
+                        setUpWalking_0();
+                        mapPose8ToPose12( poseWalk_0.angleArray,endPose12,12);
+
+//                        mapSoftPose8ToPose12(Pose_init_walking,endPose12,12);
                         myscene.setUpMyScene(300,beginPose12,endPose12);
                     }
                     else if(myscene.flag.finish)
@@ -1211,7 +1182,7 @@ int main(int argc, char **argv)
                     else if(task.finishFlag){
                         task.finishFlag=0;
                         task.startFlag=0;
-                        task.id=TASK_WALK_1STEP_;
+                        task.id=TASK_NEW_WALKING_;
                     }
                     break;
                 case TASK_WALK_1STEP_:
@@ -1356,18 +1327,9 @@ int main(int argc, char **argv)
                             }
                         }
 
-                        //                    for (unsigned char i=0;i<12;i++)
-                        //                    {
-                        //                        cout <<(unsigned int)pos12[i]<<":";
-                        //                    }
-                        //                    cout<<endl;
 
 
                         for (unsigned char i=0;i<12;i++){
-                            //                        if((pos12_double[i]>=SAM_LOWER_12BIT_BOUNDARY_)&&(pos12_double[i]<SAM_UPPER_12BIT_BOUNDARY_))
-                            //                        {
-
-                            //                        }
                             pos12[i]=(unsigned int)pos12_double[i];
                         }
 #ifdef ENABLE_ACTUATOR_
@@ -1382,20 +1344,26 @@ int main(int argc, char **argv)
                 joint_state.position[2] = -angle[2];
                 joint_state.position[3] = angle[3];
                 joint_state.position[4] = -angle[4];
-                joint_state.position[5] = angle[5];
+                joint_state.position[5] = -angle[5];
                 joint_state.position[6] = angle[6];
                 joint_state.position[7] = -angle[7];
                 joint_state.position[8] = angle[8];
                 joint_state.position[9] = angle[9];
                 joint_state.position[10] = angle[10];
                 joint_state.position[11] = angle[11];
+//                joint_state.position[12] = angle[12];
+//                joint_state.position[13] = -angle[13];
+//                joint_state.position[14] = -angle[14];
+//                joint_state.position[15] = -angle[15];
+//                joint_state.position[16] = angle[16];
+//                joint_state.position[17] = -angle[17];
+//                joint_state.position[18] = angle[18];
+//                joint_state.position[19] = angle[19];
+                joint_state.position[20] =- angle[22];
+//                joint_state.position[21] = -angle[23];
+//                joint_state.position[22] = angle[24];
                 myMessage.publish(joint_state);
-                std_msgs::Float32 a;
-                a.data=angle[0];
-                myMessage_2.publish(a);
-
             }
-
             //================communication block=================
             Recev_Data_hanlder();
             if(myCom.flagDataReceived_readAllPos12)
@@ -1403,31 +1371,18 @@ int main(int argc, char **argv)
                 myCom.flagDataReceived_readAllPos12=0;
                 myCom.flagDataAvailable_readAllPos12=1;
                 //=============================
-                for (unsigned char i=0;i<myCom.NumofSam;i++)
+
+
+                for (unsigned char i=12;i<30;i++)
                 {
-                    cout <<dec<< myCom.samPos12[i]<<":";
+                    if( myCom.samPos12Avail[i])
+                    {
+                        angle[i]=((double)myCom.samPos12[i]-(double)(samPos12_offset[i]))*pos12bitTorad;
+                        cout <<dec<< myCom.samPos12[i]<<":";
+                    }
                 }
+
                 cout<<endl;
-
-                //                                for(unsigned char i=0;i<12;i++)
-                //                                {
-                //                                                    angle[i]=((double)myCom.samPos12[i]-(double)(samPos12_offset[i]))*pos12bitTorad;
-                //                                }
-
-                //                joint_state.header.stamp = ros::Time::now();
-                //                joint_state.position[0] = angle[0];
-                //                joint_state.position[1] = angle[1];
-                //                joint_state.position[2] = -angle[2];
-                //                joint_state.position[3] = angle[3];
-                //                joint_state.position[4] = -angle[4];
-                //                joint_state.position[5] = angle[5];
-                //                joint_state.position[6] = -angle[6];
-                //                joint_state.position[7] = -angle[7];
-                //                joint_state.position[8] = angle[8];
-                //                joint_state.position[9] = angle[9];
-                //                joint_state.position[10] = angle[10];
-                //                joint_state.position[11] = angle[11];
-                //                myMessage.publish(joint_state);
             }
 
             //======================== end of your code======================
@@ -1698,6 +1653,15 @@ void SAMmodule::getAllPos12()
     Send_Serial_String(Serial,ba,3);
 }
 
+void SAMmodule::getAllPos12Full()
+{
+    unsigned char ba[3];
+    ba[0] = 0xff;
+    ba[1] = 0x99;
+    ba[2] =0xfe;
+    Send_Serial_String(Serial,ba,3);
+}
+
 void SAMmodule::getAllPos8Torq8()
 {
 
@@ -1918,9 +1882,24 @@ void Recev_Data_hanlder(){
                         cout<<"error checksum 1"<<endl;
                 }
 
-            }else if(dataIndex==6){
-                //                myCom.samPos12=(Store_chr[3]&0x7F)+((Store_chr[2]&0x1F)<<7);
-                //                cout <<dec<< samPos12<<endl;
+            }
+            else if(Store_chr[1]==PC_SAM_READ_ALL_POS12_FULL_){
+                myCom.flagDataReceived_readAllPos12=1;
+                memset(myCom.samPos12Avail, '\0', sizeof(myCom.samPos12Avail));
+                //===============================
+                myCom.NumofSam=(myCom.dataIndex-3)/4;
+                for (unsigned char i=0;i<myCom.NumofSam;i++)
+                {
+                    if(Store_chr[i*4+5]==((Store_chr[i*4+2]^Store_chr[i*4+3]^Store_chr[i*4+4])&0x7F))
+                    {
+                        myCom.samPos12[Store_chr[i*4+2]&0x1F]=(Store_chr[i*4+4]&0x7F)+((Store_chr[i*4+3]&0x1F)<<7);
+                        myCom.samPos12Avail[Store_chr[i*4+2]&0x1F]=1;
+                    }
+                    else
+                        cout<<"error checksum 1"<<endl;
+                }
+            }
+            else if(dataIndex==6){
             }
         }
     }
